@@ -38,19 +38,17 @@ interface Position {
   timestamp: number;
 }
 
-// Custom error class
+// Custom error class with literal types
 class LocationError extends Error implements GeolocationPositionError {
-  code: number;
-  PERMISSION_DENIED: number;
-  POSITION_UNAVAILABLE: number;
-  TIMEOUT: number;
+  readonly code: number;
+  readonly PERMISSION_DENIED: 1 = 1;
+  readonly POSITION_UNAVAILABLE: 2 = 2;
+  readonly TIMEOUT: 3 = 3;
 
-  constructor(message: string) {
+  constructor(message: string, code: 1 | 2 | 3 = 2) {
     super(message);
-    this.code = 2;
-    this.PERMISSION_DENIED = 1;
-    this.POSITION_UNAVAILABLE = 2;
-    this.TIMEOUT = 3;
+    this.code = code;
+    Object.setPrototypeOf(this, LocationError.prototype);
   }
 }
 
@@ -109,7 +107,8 @@ function useCurrentPosition() {
         }
       );
     } else {
-      setError(new LocationError('Geolocation not supported'));
+      // Create error with specific code
+      setError(new LocationError('Geolocation not supported', 2));
       setLoading(false);
     }
 
