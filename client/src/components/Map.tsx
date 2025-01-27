@@ -1,11 +1,14 @@
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { LatLng, Icon } from 'leaflet';
-import { useState, useEffect } from 'react';
-import L from 'leaflet';
+import { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, Paper, CircularProgress } from '@mui/material';
+import type { MarkerProps } from 'react-leaflet';
+import type { Marker as LeafletMarker } from 'leaflet';
+import type { FC } from 'react';
+import L from 'leaflet';
 
-// Custom red marker icon
+// Custom red marker icon 
 const redIcon = new Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
@@ -127,9 +130,16 @@ interface LocationMarkerProps {
   onLocationSelect: (lat: number, lng: number) => void;
 }
 
-function LocationMarker({ initialPosition, onLocationSelect }: LocationMarkerProps) {
-  const [position, setPosition] = useState(initialPosition);
+function LocationMarker({ initialPosition, onLocationSelect }: LocationMarkerProps): JSX.Element {
+  const [position, setPosition] = useState<L.LatLng>(initialPosition);
   const map = useMap();
+
+  const handleDragEnd = useCallback((e: L.DragEndEvent) => {
+    const marker = e.target;
+    const pos = marker.getLatLng();
+    setPosition(pos);
+    onLocationSelect(pos.lat, pos.lng);
+  }, [onLocationSelect]);
 
   useEffect(() => {
     const handleClick = (e: L.LeafletMouseEvent) => {
@@ -153,18 +163,13 @@ function LocationMarker({ initialPosition, onLocationSelect }: LocationMarkerPro
       });
     }
   }, [initialPosition, map, position]);
-
   return (
     <Marker
       position={position}
+      icon={redIcon}
       draggable={true}
       eventHandlers={{
-        dragend: (e) => {
-          const marker = e.target;
-          const pos = marker.getLatLng();
-          setPosition(pos);
-          onLocationSelect(pos.lat, pos.lng);
-        },
+        dragend: handleDragEnd
       }}
     />
   );

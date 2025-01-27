@@ -1,4 +1,8 @@
-router.post('/soil-data', async (req, res) => {
+import { Router, Request, Response } from 'express';
+
+const router = Router();
+
+router.post('/soil-data', async (req: Request, res: Response) => {
   try {
     const { lat, lng } = req.body;
     // ... rest of your soil data logic
