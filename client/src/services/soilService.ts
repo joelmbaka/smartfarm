@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://smartfarm-16j0.onrender.com/api';
 
 interface SoilData {
   soil: {
@@ -35,12 +35,18 @@ interface SoilData {
 export async function getSoilData(lat: number, lng: number): Promise<SoilData> {
   try {
     console.log('Fetching soil data for:', { lat, lng });
-    const response = await fetch(`${API_BASE_URL}/soil?lat=${lat}&lng=${lng}`);
+    const response = await fetch(`${API_BASE_URL}/soil?lat=${lat}&lng=${lng}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
     
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Error details:', errorData);
-      throw new Error(errorData.error || 'Failed to fetch soil data');
+      const errorText = await response.text();
+      console.error('Error response:', errorText);
+      throw new Error('Failed to fetch soil data');
     }
 
     const data = await response.json();

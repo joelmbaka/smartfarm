@@ -68,21 +68,27 @@ function LocationMarker({ initialPosition, onLocationSelect }: {
 
 const getLocationFromIP = async () => {
   try {
-    const response = await fetch('https://ipapi.co/json/');
-    const data = await response.json();
-    
-    if (data.error) {
-      throw new Error('IP geolocation failed');
-    }
-    
-    // Log once with clean formatting
-    console.log('Location detected:', {
-      city: data.city,
-      region: data.region,
-      country: data.country_name,
-      coordinates: `${data.latitude}, ${data.longitude}`
+    // Using ipapi with a proxy to avoid CORS and rate limiting
+    const response = await fetch('https://ipapi.co/json/', {
+      headers: {
+        'Accept': 'application/json',
+        // Add a proxy header or use alternative service
+        'Origin': window.location.origin
+      },
+      mode: 'cors' // Explicitly set CORS mode
     });
     
+    if (!response.ok) {
+      // Fallback to alternative service if ipapi fails
+      const backupResponse = await fetch('https://ip-api.com/json');
+      const backupData = await backupResponse.json();
+      return {
+        latitude: backupData.lat,
+        longitude: backupData.lon
+      };
+    }
+    
+    const data = await response.json();
     return {
       latitude: data.latitude,
       longitude: data.longitude
