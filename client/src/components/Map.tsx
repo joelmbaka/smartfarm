@@ -20,6 +20,11 @@ const FALLBACK_POSITION = L.latLng(-1.2841, 36.8155);
 const FALLBACK_ZOOM = 6;
 const LOCATION_ZOOM = 9;
 
+// Types
+interface Props {
+  onLocationSelect: (lat: number, lng: number) => void;
+}
+
 interface Position {
   coords: {
     latitude: number;
@@ -33,10 +38,23 @@ interface Position {
   timestamp: number;
 }
 
-interface Props {
-  onLocationSelect: (lat: number, lng: number) => void;
+// Custom error class
+class LocationError extends Error implements GeolocationPositionError {
+  code: number;
+  PERMISSION_DENIED: number;
+  POSITION_UNAVAILABLE: number;
+  TIMEOUT: number;
+
+  constructor(message: string) {
+    super(message);
+    this.code = 2;
+    this.PERMISSION_DENIED = 1;
+    this.POSITION_UNAVAILABLE = 2;
+    this.TIMEOUT = 3;
+  }
 }
 
+// Custom hook for getting current position
 function useCurrentPosition() {
   const [position, setPosition] = useState<Position | null>(null);
   const [error, setError] = useState<GeolocationPositionError | null>(null);
@@ -45,12 +63,10 @@ function useCurrentPosition() {
   useEffect(() => {
     let mounted = true;
     
-    // Try to get location with a short timeout
     const timeoutId = setTimeout(() => {
       if (mounted && !position && !error) {
         console.log('Location timeout - using fallback');
         setLoading(false);
-        // Create a proper Position object
         setPosition({
           coords: {
             latitude: FALLBACK_POSITION.lat,
@@ -93,7 +109,7 @@ function useCurrentPosition() {
         }
       );
     } else {
-      setError(new Error('Geolocation not supported') as GeolocationPositionError);
+      setError(new LocationError('Geolocation not supported'));
       setLoading(false);
     }
 
@@ -106,27 +122,30 @@ function useCurrentPosition() {
   return { position, error, loading };
 }
 
-function LocationMarker({ initialPosition, onLocationSelect }: { 
-  initialPosition: L.LatLng; 
-  onLocationSelect: (lat: number, lng: number) => void 
-}) {
+// LocationMarker component
+interface LocationMarkerProps {
+  initialPosition: L.LatLng;
+  onLocationSelect: (lat: number, lng: number) => void;
+}
+
+function LocationMarker({ initialPosition, onLocationSelect }: LocationMarkerProps) {
   const [position, setPosition] = useState(initialPosition);
   const map = useMap();
 
-  // Handle map clicks
   useEffect(() => {
-    map.on('click', (e) => {
+    const handleClick = (e: L.LeafletMouseEvent) => {
       const newPos = e.latlng;
       setPosition(newPos);
       onLocationSelect(newPos.lat, newPos.lng);
-    });
+    };
+
+    map.on('click', handleClick);
 
     return () => {
-      map.off('click');
+      map.off('click', handleClick);
     };
   }, [map, onLocationSelect]);
 
-  // Update position when initialPosition changes
   useEffect(() => {
     if (!position.equals(initialPosition)) {
       setPosition(initialPosition);
@@ -134,7 +153,7 @@ function LocationMarker({ initialPosition, onLocationSelect }: {
         duration: 1.5
       });
     }
-  }, [initialPosition, map]);
+  }, [initialPosition, map, position]);
 
   return (
     <Marker
@@ -152,6 +171,7 @@ function LocationMarker({ initialPosition, onLocationSelect }: {
   );
 }
 
+// Main Map component
 export default function Map({ onLocationSelect }: Props) {
   const { position, error, loading } = useCurrentPosition();
   const [mapConfig, setMapConfig] = useState({
@@ -170,7 +190,7 @@ export default function Map({ onLocationSelect }: Props) {
         onLocationSelect(position.coords.latitude, position.coords.longitude);
       }
     }
-  }, [position]);
+  }, [position, mapConfig.center, onLocationSelect]);
 
   return (
     <Box sx={{ mt: 2 }}>
