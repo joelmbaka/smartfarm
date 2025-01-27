@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, Typography, CircularProgress, Button, Skeleton } from '@mui/material';
+import { Box, Card, CardContent, Typography, CircularProgress, Button, Skeleton, Alert, Grid, Paper, List, ListItem, ListItemText } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { getSoilData } from '../services/soilService';
 
@@ -39,152 +39,141 @@ interface Props {
   analyzing: boolean;
 }
 
-export default function SoilInfo({ latitude, longitude, onAnalyze, analyzing }: Props) {
+export default function SoilInfo({ latitude, longitude, analyzing, onAnalyze }: Props) {
   const [soilData, setSoilData] = useState<SoilData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showData, setShowData] = useState(false);
 
-  const fetchSoilData = async () => {
-    try {
-      setError(null);
-      const data = await getSoilData(latitude, longitude);
-      setSoilData(data);
-      setShowData(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch soil data');
+  useEffect(() => {
+    if (analyzing) {
+      const fetchData = async () => {
+        try {
+          setError(null);
+          const data = await getSoilData(latitude, longitude);
+          setSoilData(data);
+          onAnalyze(); // Signal that analysis is complete
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch soil data');
+          onAnalyze(); // Signal that analysis failed
+        }
+      };
+
+      fetchData();
     }
-  };
-
-  const PreviewCard = () => (
-    <Card>
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
-          Available Analysis Data
-        </Typography>
-        
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          The analysis will provide detailed information about:
-        </Typography>
-
-        <Typography variant="h6" gutterBottom color="primary">
-          Soil Properties
-        </Typography>
-        <Box sx={{ pl: 2, mb: 2 }}>
-          <Typography variant="body2" color="text.secondary">• Soil Type</Typography>
-          <Typography variant="body2" color="text.secondary">• pH Level</Typography>
-          <Typography variant="body2" color="text.secondary">• Organic Matter Content</Typography>
-          <Typography variant="body2" color="text.secondary">• Drainage Characteristics</Typography>
-          <Typography variant="body2" color="text.secondary">• NPK Values</Typography>
-        </Box>
-
-        <Typography variant="h6" gutterBottom color="primary">
-          Climate Data
-        </Typography>
-        <Box sx={{ pl: 2, mb: 2 }}>
-          <Typography variant="body2" color="text.secondary">• Temperature Range</Typography>
-          <Typography variant="body2" color="text.secondary">• Humidity Levels</Typography>
-          <Typography variant="body2" color="text.secondary">• Rainfall Measurements</Typography>
-          <Typography variant="body2" color="text.secondary">• Growing Season Length</Typography>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-
-  if (!showData) {
-    return <PreviewCard />;
-  }
-
-  if (error) {
-    return (
-      <Box sx={{ color: 'error.main', textAlign: 'center', py: 2 }}>
-        <Typography variant="body1">{error}</Typography>
-        <Button 
-          variant="outlined" 
-          color="primary" 
-          onClick={fetchSoilData} 
-          sx={{ mt: 2 }}
-        >
-          Try Again
-        </Button>
-      </Box>
-    );
-  }
-
-  if (!soilData) {
-    return null;
-  }
+  }, [analyzing, latitude, longitude, onAnalyze]);
 
   return (
-    <Card>
+    <Card elevation={3} sx={{ mt: 3 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          Soil Information
-        </Typography>
-        
-        <Typography variant="body1">
-          <strong>Soil Type:</strong> {soilData.soil.soilType}
-        </Typography>
-        
-        <Typography variant="body1">
-          <strong>pH Level:</strong> {soilData.soil.ph.toFixed(2)}
-        </Typography>
-        
-        <Typography variant="body1">
-          <strong>Organic Matter:</strong> {soilData.soil.organicMatter.toFixed(2)}%
-        </Typography>
-        
-        <Typography variant="body1">
-          <strong>Drainage:</strong> {soilData.soil.drainage}
-        </Typography>
-        
-        <Typography variant="body1">
-          <strong>NPK Values:</strong>
-        </Typography>
-        <Typography variant="body2" sx={{ pl: 2 }}>
-          Nitrogen: {soilData.soil.nitrogen.toFixed(2)}%
-          <br />
-          Phosphorus: {soilData.soil.phosphorus.toFixed(2)}%
-          <br />
-          Potassium: {soilData.soil.potassium.toFixed(2)}%
-        </Typography>
-        
-        <Typography variant="h6" sx={{ mt: 2 }} gutterBottom>
-          Climate Information
-        </Typography>
-        
-        <Typography variant="body1">
-          <strong>Temperature:</strong>
-        </Typography>
-        <Typography variant="body2" sx={{ pl: 2 }}>
-          Current: {soilData.climate.temperature.current.toFixed(1)}°C
-          <br />
-          Min: {soilData.climate.temperature.min.toFixed(1)}°C
-          <br />
-          Max: {soilData.climate.temperature.max.toFixed(1)}°C
-        </Typography>
-        
-        <Typography variant="body1">
-          <strong>Humidity:</strong> {soilData.climate.humidity.toFixed(1)}%
-        </Typography>
-        
-        <Typography variant="body1">
-          <strong>Rainfall:</strong> {soilData.climate.rainfall.toFixed(1)}mm
-        </Typography>
-        
-        <Typography variant="body1">
-          <strong>Growing Season:</strong> {soilData.climate.growingSeasonLength} days
+          Soil Analysis Results
         </Typography>
 
-        <Box sx={{ mt: 2, textAlign: 'center' }}>
-          <Button 
-            variant="outlined" 
-            color="primary" 
-            onClick={() => setShowData(false)}
-            sx={{ minWidth: 200 }}
-          >
-            Check Another Location
-          </Button>
-        </Box>
+        {error && (
+          <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        <Grid container spacing={3}>
+          {/* Soil Properties */}
+          <Grid item xs={12} md={4}>
+            <Paper elevation={1} sx={{ p: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Soil Properties
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText 
+                    primary="pH Level" 
+                    secondary={soilData ? soilData.soil.ph.toFixed(1) : '---'}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
+                    primary="Organic Matter (%)" 
+                    secondary={soilData ? soilData.soil.organicMatter.toFixed(1) : '---'}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
+                    primary="Soil Type" 
+                    secondary={soilData ? soilData.soil.soilType : '---'}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
+                    primary="Drainage" 
+                    secondary={soilData ? soilData.soil.drainage : '---'}
+                  />
+                </ListItem>
+              </List>
+            </Paper>
+          </Grid>
+
+          {/* Nutrients */}
+          <Grid item xs={12} md={4}>
+            <Paper elevation={1} sx={{ p: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Nutrient Levels
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText 
+                    primary="Nitrogen (N)" 
+                    secondary={soilData ? `${soilData.soil.nitrogen} mg/kg` : '---'}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
+                    primary="Phosphorus (P)" 
+                    secondary={soilData ? `${soilData.soil.phosphorus} mg/kg` : '---'}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
+                    primary="Potassium (K)" 
+                    secondary={soilData ? `${soilData.soil.potassium} mg/kg` : '---'}
+                  />
+                </ListItem>
+              </List>
+            </Paper>
+          </Grid>
+
+          {/* Terrain */}
+          <Grid item xs={12} md={4}>
+            <Paper elevation={1} sx={{ p: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Terrain Characteristics
+              </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText 
+                    primary="Elevation" 
+                    secondary={soilData ? `${soilData.terrain.elevation} m` : '---'}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
+                    primary="Slope" 
+                    secondary={soilData ? `${soilData.terrain.slope}°` : '---'}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
+                    primary="Soil Depth" 
+                    secondary={soilData ? `${soilData.soil.depth} cm` : '---'}
+                  />
+                </ListItem>
+              </List>
+            </Paper>
+          </Grid>
+        </Grid>
+
+        {analyzing && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <CircularProgress />
+          </Box>
+        )}
       </CardContent>
     </Card>
   );

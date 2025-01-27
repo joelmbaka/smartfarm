@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://your-backend-url.com/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 interface SoilData {
   soil: {
@@ -35,7 +35,7 @@ interface SoilData {
 export async function getSoilData(lat: number, lng: number): Promise<SoilData> {
   try {
     console.log('Fetching soil data for:', { lat, lng });
-    const response = await fetch(`http://localhost:3001/api/soil?lat=${lat}&lng=${lng}`);
+    const response = await fetch(`${API_BASE_URL}/soil?lat=${lat}&lng=${lng}`);
     
     if (!response.ok) {
       const errorData = await response.json();
