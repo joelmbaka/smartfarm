@@ -20,6 +20,24 @@ import {
 } from '@mui/material';
 import { getClimateData } from '../services/climateService';
 
+interface ClimateData {
+  temperature: {
+    current: number;
+    min: number;
+    max: number;
+  };
+  rainfall: {
+    daily: number;
+    probability: number;
+  };
+  humidity: number;
+  forecast: Array<{
+    date: string;
+    temperature: number;
+    rainfall: number;
+  }>;
+}
+
 interface ClimateInfoProps {
   location: { lat: number; lng: number } | null;
   analyzing: boolean;
@@ -123,7 +141,7 @@ export default function ClimateInfo({ location, analyzing }: ClimateInfoProps) {
               </Typography>
               <List dense>
                 {climateData ? (
-                  climateData.forecast.slice(0, 3).map((day, index) => (
+                  climateData.forecast.slice(0, 3).map((day: { date: string; temperature: number; rainfall: number }, index: number) => (
                     <ListItem key={index}>
                       <ListItemText 
                         primary={new Date(day.date).toLocaleDateString()} 
