@@ -20,12 +20,25 @@ const FALLBACK_POSITION = L.latLng(-1.2841, 36.8155);
 const FALLBACK_ZOOM = 6;
 const LOCATION_ZOOM = 9;
 
+interface Position {
+  coords: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    altitude: number | null;
+    altitudeAccuracy: number | null;
+    heading: number | null;
+    speed: number | null;
+  };
+  timestamp: number;
+}
+
 interface Props {
   onLocationSelect: (lat: number, lng: number) => void;
 }
 
 function useCurrentPosition() {
-  const [position, setPosition] = useState<GeolocationPosition | null>(null);
+  const [position, setPosition] = useState<Position | null>(null);
   const [error, setError] = useState<GeolocationPositionError | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,6 +50,7 @@ function useCurrentPosition() {
       if (mounted && !position && !error) {
         console.log('Location timeout - using fallback');
         setLoading(false);
+        // Create a proper Position object
         setPosition({
           coords: {
             latitude: FALLBACK_POSITION.lat,
@@ -50,33 +64,38 @@ function useCurrentPosition() {
           timestamp: Date.now()
         });
       }
-    }, 5000); // 5 second timeout
+    }, 5000);
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (mounted) {
-          console.log('Location detected:', {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: `${pos.coords.accuracy} meters`
-          });
-          setPosition(pos);
-          setLoading(false);
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (mounted) {
+            console.log('Location detected:', {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: `${pos.coords.accuracy} meters`
+            });
+            setPosition(pos);
+            setLoading(false);
+          }
+        },
+        (err) => {
+          if (mounted) {
+            console.warn('Geolocation error:', err.message);
+            setError(err);
+            setLoading(false);
+          }
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 4000,
+          maximumAge: 300000
         }
-      },
-      (err) => {
-        if (mounted) {
-          console.warn('Geolocation error:', err.message);
-          setError(err);
-          setLoading(false);
-        }
-      },
-      {
-        enableHighAccuracy: false,
-        timeout: 4000, // 4 second timeout
-        maximumAge: 300000 // 5 minute cache
-      }
-    );
+      );
+    } else {
+      setError(new Error('Geolocation not supported') as GeolocationPositionError);
+      setLoading(false);
+    }
 
     return () => {
       mounted = false;
