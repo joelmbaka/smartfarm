@@ -44,15 +44,15 @@ type SoilDataRequest = Request<{}, {}, {}, {
 
 export const getSoilData = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { lat, lng } = req.query;
+    const { lat, lng } = req.body;
     
     if (!lat || !lng) {
       res.status(400).json({ error: 'Latitude and longitude are required' });
       return;
     }
 
-    const latitude = parseFloat(lat as string);
-    const longitude = parseFloat(lng as string);
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
 
     console.log('Fetching data for coordinates:', { latitude, longitude });
 

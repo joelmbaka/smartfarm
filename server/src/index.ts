@@ -30,7 +30,7 @@ const connectDB = async () => {
 };
 
 // Routes
-app.get('/api/soil', getSoilData);
+app.post('/api/soil-data', getSoilData);
 
 // Connect to MongoDB before starting the server
 connectDB().then(() => {

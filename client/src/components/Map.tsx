@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, useMapEvents, Marker } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { LatLng, Icon } from 'leaflet';
 import { useState, useEffect } from 'react';
@@ -16,43 +16,110 @@ const redIcon = new Icon({
 });
 
 // World view as fallback
-const FALLBACK_POSITION: LatLng = L.latLng(0, 0);
-const FALLBACK_ZOOM = 2;
+const FALLBACK_POSITION = L.latLng(-1.2841, 36.8155);
+const FALLBACK_ZOOM = 6;
+const LOCATION_ZOOM = 9;
 
 interface Props {
   onLocationSelect: (lat: number, lng: number) => void;
 }
 
+function useCurrentPosition() {
+  const [position, setPosition] = useState<GeolocationPosition | null>(null);
+  const [error, setError] = useState<GeolocationPositionError | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    
+    // Try to get location with a short timeout
+    const timeoutId = setTimeout(() => {
+      if (mounted && !position && !error) {
+        console.log('Location timeout - using fallback');
+        setLoading(false);
+        setPosition({
+          coords: {
+            latitude: FALLBACK_POSITION.lat,
+            longitude: FALLBACK_POSITION.lng,
+            accuracy: 0,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null
+          },
+          timestamp: Date.now()
+        });
+      }
+    }, 5000); // 5 second timeout
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (mounted) {
+          console.log('Location detected:', {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: `${pos.coords.accuracy} meters`
+          });
+          setPosition(pos);
+          setLoading(false);
+        }
+      },
+      (err) => {
+        if (mounted) {
+          console.warn('Geolocation error:', err.message);
+          setError(err);
+          setLoading(false);
+        }
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 4000, // 4 second timeout
+        maximumAge: 300000 // 5 minute cache
+      }
+    );
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
+  return { position, error, loading };
+}
+
 function LocationMarker({ initialPosition, onLocationSelect }: { 
-  initialPosition: LatLng; 
+  initialPosition: L.LatLng; 
   onLocationSelect: (lat: number, lng: number) => void 
 }) {
-  const [position, setPosition] = useState<LatLng>(initialPosition);
+  const [position, setPosition] = useState(initialPosition);
+  const map = useMap();
+
+  // Handle map clicks
+  useEffect(() => {
+    map.on('click', (e) => {
+      const newPos = e.latlng;
+      setPosition(newPos);
+      onLocationSelect(newPos.lat, newPos.lng);
+    });
+
+    return () => {
+      map.off('click');
+    };
+  }, [map, onLocationSelect]);
 
   // Update position when initialPosition changes
   useEffect(() => {
-    setPosition(initialPosition);
-  }, [initialPosition]);
-
-  const map = useMapEvents({
-    click(e) {
-      setPosition(e.latlng);
-      onLocationSelect(e.latlng.lat, e.latlng.lng);
-    },
-  });
-
-  // Fly to initial position when component mounts
-  useEffect(() => {
-    if (initialPosition !== FALLBACK_POSITION) {
-      map.flyTo(initialPosition, map.getZoom());
+    if (!position.equals(initialPosition)) {
+      setPosition(initialPosition);
+      map.flyTo(initialPosition, map.getZoom(), {
+        duration: 1.5
+      });
     }
-  }, [map, initialPosition]);
+  }, [initialPosition, map]);
 
-  // Always render the marker at the current position
   return (
-    <Marker 
-      position={position} 
-      icon={redIcon}
+    <Marker
+      position={position}
       draggable={true}
       eventHandlers={{
         dragend: (e) => {
@@ -66,124 +133,32 @@ function LocationMarker({ initialPosition, onLocationSelect }: {
   );
 }
 
-const getLocationFromIP = async () => {
-  try {
-    // Using ipapi with a proxy to avoid CORS and rate limiting
-    const response = await fetch('https://ipapi.co/json/', {
-      headers: {
-        'Accept': 'application/json',
-        // Add a proxy header or use alternative service
-        'Origin': window.location.origin
-      },
-      mode: 'cors' // Explicitly set CORS mode
-    });
-    
-    if (!response.ok) {
-      // Fallback to alternative service if ipapi fails
-      const backupResponse = await fetch('https://ip-api.com/json');
-      const backupData = await backupResponse.json();
-      return {
-        latitude: backupData.lat,
-        longitude: backupData.lon
-      };
-    }
-    
-    const data = await response.json();
-    return {
-      latitude: data.latitude,
-      longitude: data.longitude
-    };
-  } catch (error) {
-    console.error('IP geolocation failed:', error);
-    throw error;
-  }
-};
-
 export default function Map({ onLocationSelect }: Props) {
+  const { position, error, loading } = useCurrentPosition();
   const [mapConfig, setMapConfig] = useState({
     center: FALLBACK_POSITION,
     zoom: FALLBACK_ZOOM
   });
-  const [initialPosition, setInitialPosition] = useState<LatLng>(FALLBACK_POSITION);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
-
-    const initializeMap = async () => {
-      setIsLoading(true);
-      try {
-        const location = await getLocationFromIP();
-        
-        if (!mounted) return;
-        
-        const pos = L.latLng(location.latitude, location.longitude);
-        console.log('Setting marker position:', pos);
+    if (position && position.coords) {
+      const newPos = L.latLng(position.coords.latitude, position.coords.longitude);
+      if (!mapConfig.center.equals(newPos)) {
         setMapConfig({
-          center: pos,
-          zoom: 11
+          center: newPos,
+          zoom: LOCATION_ZOOM
         });
-        setInitialPosition(pos);
-        onLocationSelect(location.latitude, location.longitude);
-      } catch (error) {
-        console.error('Location services failed:', error);
-        if (!mounted) return;
-        
-        // Fallback to browser geolocation
-        if ("geolocation" in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              if (!mounted) return;
-              const { latitude, longitude } = position.coords;
-              const pos = L.latLng(latitude, longitude);
-              setMapConfig({
-                center: pos,
-                zoom: 11
-              });
-              setInitialPosition(pos);
-              onLocationSelect(latitude, longitude);
-            },
-            (geoError) => {
-              console.error('Browser geolocation failed:', geoError);
-              if (!mounted) return;
-              setMapConfig({
-                center: FALLBACK_POSITION,
-                zoom: FALLBACK_ZOOM
-              });
-              setInitialPosition(FALLBACK_POSITION);
-              onLocationSelect(FALLBACK_POSITION.lat, FALLBACK_POSITION.lng);
-            }
-          );
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
+        onLocationSelect(position.coords.latitude, position.coords.longitude);
       }
-    };
-
-    initializeMap();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    }
+  }, [position]);
 
   return (
-    <Box>
-      <Paper 
-        elevation={0} 
-        sx={{ 
-          p: 1.5, 
-          mb: 2, 
-          backgroundColor: '#f5f5f5',
-          border: '1px solid #e0e0e0',
-          borderRadius: 1
-        }}
-      >
+    <Box sx={{ mt: 2 }}>
+      <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
         <Typography 
           variant="body2" 
-          color="text.secondary"
+          color="text.secondary" 
           sx={{ 
             display: 'flex', 
             alignItems: 'center',
@@ -191,17 +166,18 @@ export default function Map({ onLocationSelect }: Props) {
             gap: 1
           }}
         >
-          {isLoading ? (
+          {loading ? (
             <>
               <CircularProgress size={16} />
               Detecting location...
             </>
           ) : (
-            '📍 Click anywhere on the map or drag the marker to set your location'
+            '📍 Click anywhere on the map to set location or drag the marker'
           )}
         </Typography>
       </Paper>
       <MapContainer
+        key={`${mapConfig.center.lat}-${mapConfig.center.lng}-${mapConfig.zoom}`}
         center={mapConfig.center}
         zoom={mapConfig.zoom}
         style={{ height: '400px', width: '100%' }}
@@ -211,7 +187,7 @@ export default function Map({ onLocationSelect }: Props) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <LocationMarker 
-          initialPosition={initialPosition} 
+          initialPosition={mapConfig.center} 
           onLocationSelect={onLocationSelect} 
         />
       </MapContainer>

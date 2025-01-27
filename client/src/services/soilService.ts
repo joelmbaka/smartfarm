@@ -34,19 +34,28 @@ interface SoilData {
 
 export async function getSoilData(lat: number, lng: number): Promise<SoilData> {
   try {
-    console.log('Fetching soil data for:', { lat, lng });
-    const response = await fetch(`${API_BASE_URL}/soil?lat=${lat}&lng=${lng}`, {
-      method: 'GET',
+    const endpoint = `${API_BASE_URL}/soil-data`;
+    console.log('Fetching soil data from:', endpoint);
+    
+    const response = await fetch(endpoint, {
+      method: 'POST',
       headers: {
         'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+        'Origin': window.location.origin
+      },
+      body: JSON.stringify({ lat, lng })
     });
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Error response:', errorText);
-      throw new Error('Failed to fetch soil data');
+      console.error('Server response:', {
+        status: response.status,
+        statusText: response.statusText,
+        endpoint,
+        body: errorText
+      });
+      throw new Error(`Failed to fetch soil data: ${response.status}`);
     }
 
     const data = await response.json();

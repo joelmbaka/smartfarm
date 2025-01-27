@@ -42,18 +42,21 @@ interface Props {
 export default function SoilInfo({ latitude, longitude, analyzing, onAnalyze }: Props) {
   const [soilData, setSoilData] = useState<SoilData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (analyzing) {
       const fetchData = async () => {
         try {
           setError(null);
+          setIsLoading(true);
           const data = await getSoilData(latitude, longitude);
           setSoilData(data);
-          onAnalyze(); // Signal that analysis is complete
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to fetch soil data');
-          onAnalyze(); // Signal that analysis failed
+        } finally {
+          setIsLoading(false);
+          onAnalyze(); // Signal that analysis is complete
         }
       };
 
@@ -67,6 +70,21 @@ export default function SoilInfo({ latitude, longitude, analyzing, onAnalyze }: 
         <Typography variant="h6" gutterBottom>
           Soil Analysis Results
         </Typography>
+
+        {isLoading && (
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            gap: 2,
+            my: 3 
+          }}>
+            <CircularProgress size={20} />
+            <Typography variant="body2" color="text.secondary">
+              Fetching soil data... This may take a few moments.
+            </Typography>
+          </Box>
+        )}
 
         {error && (
           <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
@@ -168,12 +186,6 @@ export default function SoilInfo({ latitude, longitude, analyzing, onAnalyze }: 
             </Paper>
           </Grid>
         </Grid>
-
-        {analyzing && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-            <CircularProgress />
-          </Box>
-        )}
       </CardContent>
     </Card>
   );
