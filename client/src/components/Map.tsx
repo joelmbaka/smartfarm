@@ -6,7 +6,7 @@ import { Box, Typography, Paper, CircularProgress } from '@mui/material';
 import type { MarkerProps } from 'react-leaflet';
 import type { Marker as LeafletMarker } from 'leaflet';
 import type { FC } from 'react';
-import L from 'leaflet';
+import * as L from 'leaflet';
 
 // Custom red marker icon 
 const redIcon = new Icon({
